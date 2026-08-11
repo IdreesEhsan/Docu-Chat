@@ -9,7 +9,6 @@ export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
-    // Check for existing token on mount
     if (localStorage.getItem('access_token')) {
       setIsAuthenticated(true);
     }
@@ -31,8 +30,11 @@ export default function App() {
           <Navbar activeTab={activeTab} setActiveTab={setActiveTab} />
         </div>
         <div style={{ paddingRight: '30px' }}>
-          <button className="glass-button" onClick={handleLogout}
-            style={{ border: '1px solid rgba(239, 68, 68, 0.5)', color: '#ff7675' }}>
+          <button
+            className="glass-button"
+            onClick={handleLogout}
+            style={{ border: '1px solid rgba(239, 68, 68, 0.5)', color: '#ff7675' }}
+          >
             Logout
           </button>
         </div>
