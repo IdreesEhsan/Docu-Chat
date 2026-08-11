@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { streamRagChat, fetchSessions, fetchSessionMessages } from '../services/api';
-import { Send, Bot, User, Plus, MessageSquare, History } from 'lucide-react';
+import { Send, Bot, User, Plus, MessageSquare, History, Trash2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import DocumentPanel from './DocumentPanel';
@@ -21,15 +21,15 @@ export default function ChatView() {
     const [userEmail, setUserEmail] = useState('');
     const [sources, setSources] = useState([]);
     const [loadingSession, setLoadingSession] = useState(false);
-    const [isNewSession, setIsNewSession] = useState(false);   // <-- track new session
+    const [isNewSession, setIsNewSession] = useState(false);
     const messagesEndRef = useRef(null);
 
-    // Auto‑scroll when messages change
+    // Auto‑scroll
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
 
-    // Initial load: sessions + decode JWT (no polling)
+    // Initial load: sessions + decode JWT
     useEffect(() => {
         loadSessions();
         try {
@@ -92,6 +92,27 @@ export default function ChatView() {
         setSources([]);
     };
 
+    // --- Delete session ---
+    const handleDeleteSession = async (sessionId) => {
+        try {
+            const BASE = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/+$/, '');
+            const res = await fetch(`${BASE}/api/chat/sessions/${sessionId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+                }
+            });
+            if (res.ok) {
+                loadSessions();
+                if (currentSessionId === sessionId) {
+                    handleNewChat();
+                }
+            }
+        } catch (err) {
+            console.error('Failed to delete session', err);
+        }
+    };
+
     const handleSend = async () => {
         if (!input.trim() || isGenerating) return;
 
@@ -102,7 +123,7 @@ export default function ChatView() {
         setIsGenerating(true);
 
         const isNew = !currentSessionId;
-        setIsNewSession(isNew);                      // mark new session
+        setIsNewSession(isNew);
 
         const assistantIndex = newMessages.length;
         setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
@@ -149,11 +170,9 @@ export default function ChatView() {
             });
         } finally {
             setIsGenerating(false);
-            loadSessions();                   // immediate refresh
+            loadSessions();
             if (isNewSession) {
-                setTimeout(() => {
-                    loadSessions();           // one delayed refresh for title
-                }, 5000);
+                setTimeout(() => loadSessions(), 5000);  // one-time title refresh
             }
         }
     };
@@ -163,7 +182,7 @@ export default function ChatView() {
             display: 'flex', gap: '16px', height: 'calc(100vh - 120px)',
             padding: '0 30px 20px', transition: 'all 0.3s ease'
         }}>
-            {/* ========== LEFT COLUMN – two glass panels ========== */}
+            {/* LEFT COLUMN */}
             {showHistory && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '260px', flexShrink: 0 }}>
                     {/* Chat History Panel */}
@@ -184,18 +203,36 @@ export default function ChatView() {
                             {sessions.map(s => (
                                 <div
                                     key={s.id}
-                                    onClick={() => handleSelectSession(s)}
                                     className="session-item"
                                     style={{
-                                        padding: '10px 12px', borderRadius: '10px', cursor: 'pointer',
+                                        padding: '8px 10px', borderRadius: '10px', cursor: 'pointer',
                                         background: currentSessionId === s.id ? 'rgba(139, 92, 246, 0.25)' : 'rgba(255, 255, 255, 0.03)',
                                         border: currentSessionId === s.id ? '1px solid var(--accent-cyan)' : '1px solid rgba(255, 255, 255, 0.05)',
-                                        fontSize: '13px', display: 'flex', alignItems: 'center', gap: '10px',
-                                        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                                        fontSize: '13px', display: 'flex', alignItems: 'center',
+                                        gap: '8px', whiteSpace: 'nowrap', overflow: 'hidden',
                                         transition: 'all 0.2s'
-                                    }}>
-                                    <MessageSquare size={14} style={{ flexShrink: 0, color: 'var(--accent-cyan)' }} />
-                                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.title}</span>
+                                    }}
+                                >
+                                    <div
+                                        onClick={() => handleSelectSession(s)}
+                                        style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, overflow: 'hidden' }}
+                                    >
+                                        <MessageSquare size={14} style={{ flexShrink: 0, color: 'var(--accent-cyan)' }} />
+                                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.title}</span>
+                                    </div>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDeleteSession(s.id);
+                                        }}
+                                        className="glass-button"
+                                        style={{
+                                            padding: '2px 6px', background: 'transparent',
+                                            border: 'none', cursor: 'pointer', flexShrink: 0
+                                        }}
+                                    >
+                                        <Trash2 size={14} color="#ff7675" />
+                                    </button>
                                 </div>
                             ))}
                         </div>
@@ -227,17 +264,16 @@ export default function ChatView() {
                         </div>
                     </div>
 
-                    {/* Document Panel – separate box */}
+                    {/* Document Panel */}
                     <DocumentPanel />
                 </div>
             )}
 
-            {/* ========== MAIN CHAT AREA ========== */}
+            {/* MAIN CHAT AREA */}
             <div className="glass-panel" style={{
                 flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column',
                 height: '100%', overflow: 'hidden'
             }}>
-                {/* Top bar */}
                 <div style={{
                     padding: '14px 20px', borderBottom: '1px solid var(--glass-border)',
                     display: 'flex', justifyContent: 'space-between', alignItems: 'center'
@@ -253,16 +289,13 @@ export default function ChatView() {
                     </div>
                 </div>
 
-                {/* Messages or Loading */}
                 <div style={{
                     flex: 1, padding: '20px', overflowY: 'auto',
                     display: 'flex', flexDirection: 'column', gap: '16px'
                 }}>
                     {loadingSession ? (
                         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-                            <div className="typing-indicator">
-                                <span></span><span></span><span></span>
-                            </div>
+                            <div className="typing-indicator"><span></span><span></span><span></span></div>
                         </div>
                     ) : (
                         messages.map((m, i) => (
@@ -270,7 +303,6 @@ export default function ChatView() {
                                 display: 'flex', gap: '12px',
                                 justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start'
                             }}>
-                                {/* Bot icon */}
                                 {m.role === 'assistant' && (
                                     <div style={{
                                         background: 'linear-gradient(135deg, #8b5cf6, #06b6d4)',
@@ -281,8 +313,6 @@ export default function ChatView() {
                                         <Bot size={18} color="#fff" />
                                     </div>
                                 )}
-
-                                {/* Bubble */}
                                 <div style={{
                                     maxWidth: '70%', padding: '12px 16px', borderRadius: '16px',
                                     background: m.role === 'user'
@@ -300,7 +330,6 @@ export default function ChatView() {
                                                     ? <div className="typing-indicator"><span></span><span></span><span></span></div>
                                                     : ""
                                             }
-                                            {/* Sources */}
                                             {m.role === 'assistant' && i === messages.length - 1 &&
                                              sources.length > 0 && !isGenerating && (
                                                 <div style={{
@@ -313,8 +342,6 @@ export default function ChatView() {
                                         </div>
                                     )}
                                 </div>
-
-                                {/* User icon */}
                                 {m.role === 'user' && (
                                     <div style={{
                                         background: 'rgba(255, 255, 255, 0.1)', width: '32px', height: '32px',
@@ -330,7 +357,6 @@ export default function ChatView() {
                     <div ref={messagesEndRef} />
                 </div>
 
-                {/* Input */}
                 <div style={{
                     padding: '16px', borderTop: '1px solid var(--glass-border)',
                     display: 'flex', gap: '12px', alignItems: 'flex-end'
