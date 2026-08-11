@@ -1,5 +1,5 @@
 import React from 'react';
-import { MessageSquare, FileText, Sparkles } from 'lucide-react';
+import { MessageSquare, Sparkles } from 'lucide-react';
 
 export default function Navbar({ activeTab, setActiveTab }) {
     return (
@@ -10,32 +10,22 @@ export default function Navbar({ activeTab, setActiveTab }) {
                 </div>
                 <div>
                     <h1 style={{ fontSize: '20px', fontWeight: '700', background: 'linear-gradient(90deg, #fff, #8892b0)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                        Smart Extractor & Chat Service
+                        DocuChat
                     </h1>
-                    <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Production-grade LLM Service</p>
+                    <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>RAG-powered Document Q&A</p>
                 </div>
             </div>
 
             <nav className="glass-panel" style={{ padding: '6px', display: 'flex', gap: '6px', borderRadius: '16px' }}>
                 <button
                     onClick={() => setActiveTab('chat')}
-                      className={`glass-button ${activeTab === 'chat' ? 'nav-tab-active' : ''}`}
+                    className={`glass-button ${activeTab === 'chat' ? 'nav-tab-active' : ''}`}
                     style={{
-                        background: activeTab === 'chat' ? 'linear-gradient(135deg, rgba(192, 67, 255, 0.6), rgba(0, 242, 254, 0.6))' : 'transparent',
+                        background: activeTab === 'chat' ? 'linear-gradient(135deg, rgba(139, 92, 246, 0.6), rgba(6, 182, 212, 0.6))' : 'transparent',
                         border: 'none'
                     }}
                 >
-                    <MessageSquare size={16} /> Streaming Chat
-                </button>
-                <button
-                    onClick={() => setActiveTab('extract')}
-                    className={`glass-button ${activeTab === 'extract' ? 'nav-tab-active' : ''}`}
-                    style={{
-                        background: activeTab === 'extract' ? 'linear-gradient(135deg, rgba(192, 67, 255, 0.6), rgba(0, 242, 254, 0.6))' : 'transparent',
-                        border: 'none'
-                    }}
-                >
-                    <FileText size={16} /> JSON Extractor
+                    <MessageSquare size={16} /> Chat
                 </button>
             </nav>
         </header>
