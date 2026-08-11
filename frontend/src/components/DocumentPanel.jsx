@@ -24,6 +24,8 @@ export default function DocumentPanel() {
             loadDocs();
         } catch(err) { alert('Upload failed'); }
         setLoading(false);
+        // Clear the file input so the same file can be re-uploaded if needed
+        e.target.value = '';
     };
 
     const handleDelete = async (id) => {
