@@ -5,7 +5,6 @@ import DocumentPanel from './components/DocumentPanel';
 import AuthView from './components/AuthView';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('chat');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
@@ -27,7 +26,8 @@ export default function App() {
     <div className="app-container" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ flex: 1 }}>
-          <Navbar activeTab={activeTab} setActiveTab={setActiveTab} />
+          {/* Pass dummy props since we only have one tab */}
+          <Navbar activeTab="chat" setActiveTab={() => {}} />
         </div>
         <div style={{ paddingRight: '30px' }}>
           <button
@@ -40,7 +40,6 @@ export default function App() {
         </div>
       </div>
       <main style={{ flex: 1, display: 'flex' }}>
-        {/* Left sidebar: DocumentPanel + chat history is inside ChatView */}
         <div style={{ width: '280px', flexShrink: 0 }}>
           <DocumentPanel />
         </div>
