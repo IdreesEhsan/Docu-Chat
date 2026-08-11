@@ -15,6 +15,15 @@ logger = logging.getLogger("uvicorn")
 def list_sessions(user = Depends(get_current_user)):
     return db_service.get_all_sessions(user.id)
 
+@router.delete("/sessions/{session_id}")
+def delete_session(session_id: str, user=Depends(get_current_user)):
+    try:
+        # Delete session (messages will be deleted via CASCADE)
+        db_service.supabase.table("chat_sessions").delete().eq("id", session_id).execute()
+        return {"status": "deleted"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.post("/sessions")
 def create_session(request: CreateSessionRequest, user = Depends(get_current_user)):
     return db_service.create_chat_session(user.id, request.system_prompt, request.title)
