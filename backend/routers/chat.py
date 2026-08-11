@@ -78,7 +78,7 @@ async def chat_endpoint(request: ChatRequest, user = Depends(get_current_user)):
     # Retrieve relevant chunks
     query = request.messages[-1].content
     query_embedding = get_embedding(query)           # synchronous local call
-    retrieved = db_service.similarity_search(query_embedding, top_k=10, threshold=0.15)
+    retrieved = db_service.similarity_search(query_embedding, top_k=7, threshold=0.15)
 
     context_chunks = [
         {

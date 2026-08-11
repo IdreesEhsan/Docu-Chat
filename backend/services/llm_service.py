@@ -8,26 +8,39 @@ groq_client = AsyncGroq(api_key=settings.GROQ_API_KEY)
 
 # ---------- Title generation ----------
 async def generate_chat_title(user_prompt: str) -> str:
-    """Generate a short title for a new chat session, with fallback."""
+    """Generate a short title using a smaller, reliable model."""
     try:
+        system_msg = (
+            "You are a title generator. Read the user's question and output "
+            "a title of exactly 3 to 5 words. Do not use quotes, punctuation, "
+            "or extra text. Just the title."
+        )
         messages = [
-            {"role": "system", "content": "Create a 3-4 word title for this chat."},
+            {"role": "system", "content": system_msg},
             {"role": "user", "content": user_prompt}
         ]
+        # Use the smaller model that reliably follows instructions
         res = await groq_client.chat.completions.create(
-            model=settings.GROQ_MODEL,
+            model=settings.GROQ_TITLE_MODEL,
             messages=messages,
-            max_tokens=15,
+            max_tokens=20,
             temperature=0.3
         )
         title = res.choices[0].message.content.strip()
-        # Clean up any quotes
-        title = title.replace('"', '').replace("'", "")
-        return title
+        logger.info(f"AI title: '{title}'")
+        if title:
+            return title.replace('"', '').replace("'", "")
+        else:
+            # Shouldn't happen, but fallback
+            return _fallback_title(user_prompt)
     except Exception as e:
-        logger.error(f"Title generation failed: {e}, using fallback")
-        # Fallback: truncate user prompt to 40 chars
-        return (user_prompt[:40] + '...') if len(user_prompt) > 40 else user_prompt
+        logger.error(f"Title generation failed: {e}")
+        return _fallback_title(user_prompt)
+
+def _fallback_title(prompt: str) -> str:
+    """Truncated user prompt – last resort."""
+    clean = prompt.strip().replace('\n', ' ')
+    return (clean[:50] + '...') if len(clean) > 50 else clean
 
 # ---------- Streaming RAG chat ----------
 async def stream_rag_chat(messages, context_chunks, temperature=0.7):
