@@ -8,18 +8,26 @@ groq_client = AsyncGroq(api_key=settings.GROQ_API_KEY)
 
 # ---------- Title generation ----------
 async def generate_chat_title(user_prompt: str) -> str:
-    """Generate a short title for a new chat session."""
-    messages = [
-        {"role": "system", "content": "Create a 3-4 word title for this chat."},
-        {"role": "user", "content": user_prompt}
-    ]
-    res = await groq_client.chat.completions.create(
-        model=settings.GROQ_MODEL,
-        messages=messages,
-        max_tokens=15,
-        temperature=0.3
-    )
-    return res.choices[0].message.content.strip()
+    """Generate a short title for a new chat session, with fallback."""
+    try:
+        messages = [
+            {"role": "system", "content": "Create a 3-4 word title for this chat."},
+            {"role": "user", "content": user_prompt}
+        ]
+        res = await groq_client.chat.completions.create(
+            model=settings.GROQ_MODEL,
+            messages=messages,
+            max_tokens=15,
+            temperature=0.3
+        )
+        title = res.choices[0].message.content.strip()
+        # Clean up any quotes
+        title = title.replace('"', '').replace("'", "")
+        return title
+    except Exception as e:
+        logger.error(f"Title generation failed: {e}, using fallback")
+        # Fallback: truncate user prompt to 40 chars
+        return (user_prompt[:40] + '...') if len(user_prompt) > 40 else user_prompt
 
 # ---------- Streaming RAG chat ----------
 async def stream_rag_chat(messages, context_chunks, temperature=0.7):
