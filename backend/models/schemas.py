@@ -4,11 +4,11 @@ from typing import Optional, List
 
 # --- Auth ---
 class UserRegister(BaseModel):
+    name: str
     email: str
+    age: int = Field(gt=0)
+    country: str
     password: str
-    name: Optional[str] = ""
-    age: Optional[str] = None
-    country: Optional[str] = ""
 
     @field_validator('password')
     def validate_password(cls, v):
