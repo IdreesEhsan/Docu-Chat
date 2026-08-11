@@ -5,13 +5,6 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import DocumentPanel from './DocumentPanel';
 
-/**
- * ChatView – the main chat interface with RAG capabilities.
- * Left sidebar contains two separate glass panels:
- *   1. Chat History (sessions + user footer)
- *   2. Document upload & list
- * Main area: streaming AI responses with inline source citations.
- */
 export default function ChatView() {
     const [sessions, setSessions] = useState([]);
     const [currentSessionId, setCurrentSessionId] = useState(null);
@@ -27,16 +20,18 @@ export default function ChatView() {
     const [abortController, setAbortController] = useState(null);
     const [userEmail, setUserEmail] = useState('');
     const [sources, setSources] = useState([]);
+    const [loadingSession, setLoadingSession] = useState(false);   // <-- NEW
     const messagesEndRef = useRef(null);
 
-    // Auto‑scroll when messages change
+    // Auto-scroll
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
 
-    // Load sessions and decode user email from JWT on mount
+    // Initial load + polling sessions every 3s for title updates
     useEffect(() => {
         loadSessions();
+        // Decode JWT
         try {
             const token = localStorage.getItem('access_token');
             if (token) {
@@ -52,6 +47,12 @@ export default function ChatView() {
             console.error('Failed to decode JWT:', err);
             setUserEmail('Logged In User');
         }
+
+        // Poll sessions every 3 seconds to catch title updates
+        const interval = setInterval(() => {
+            loadSessions();
+        }, 3000);
+        return () => clearInterval(interval);
     }, []);
 
     const loadSessions = async () => {
@@ -71,6 +72,8 @@ export default function ChatView() {
         setCurrentSessionId(session.id);
         setIsGenerating(false);
         setSources([]);
+        setLoadingSession(true);
+
         try {
             const historyMessages = await fetchSessionMessages(session.id);
             const formattedHistory = historyMessages.map(msg => ({
@@ -83,6 +86,7 @@ export default function ChatView() {
         } catch (err) {
             console.error('Failed to load messages:', err);
         }
+        setLoadingSession(false);
     };
 
     const handleNewChat = () => {
@@ -159,20 +163,18 @@ export default function ChatView() {
             display: 'flex', gap: '16px', height: 'calc(100vh - 120px)',
             padding: '0 30px 20px', transition: 'all 0.3s ease'
         }}>
-            {/* ========== LEFT COLUMN: two separate glass panels ========== */}
+            {/* LEFT COLUMN – two glass panels */}
             {showHistory && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '260px', flexShrink: 0 }}>
-                    {/* 1. Chat History Panel */}
+                    {/* Chat History Panel */}
                     <div className="glass-panel" style={{
                         padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px',
                         flex: '1 1 auto', overflow: 'hidden'
                     }}>
-                        <button className="glass-button"
-                            style={{
-                                width: '100%', justifyContent: 'center',
-                                background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.4), rgba(6, 182, 212, 0.4))'
-                            }}
-                            onClick={handleNewChat}>
+                        <button className="glass-button" style={{
+                            width: '100%', justifyContent: 'center',
+                            background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.4), rgba(6, 182, 212, 0.4))'
+                        }} onClick={handleNewChat}>
                             <Plus size={16} /> New Chat
                         </button>
                         <div style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '600', marginTop: '8px' }}>
@@ -197,7 +199,7 @@ export default function ChatView() {
                                 </div>
                             ))}
                         </div>
-                        {/* User profile footer */}
+                        {/* User footer */}
                         <div style={{
                             marginTop: 'auto', padding: '10px 12px', borderRadius: '12px',
                             background: 'rgba(15, 23, 42, 0.6)', border: '1px solid var(--glass-border)',
@@ -225,12 +227,12 @@ export default function ChatView() {
                         </div>
                     </div>
 
-                    {/* 2. Document Panel – separate box */}
+                    {/* Document Panel */}
                     <DocumentPanel />
                 </div>
             )}
 
-            {/* ========== MAIN CHAT AREA ========== */}
+            {/* MAIN CHAT AREA */}
             <div className="glass-panel" style={{
                 flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column',
                 height: '100%', overflow: 'hidden'
@@ -251,76 +253,84 @@ export default function ChatView() {
                     </div>
                 </div>
 
-                {/* Messages container */}
+                {/* Messages or Loading */}
                 <div style={{
                     flex: 1, padding: '20px', overflowY: 'auto',
                     display: 'flex', flexDirection: 'column', gap: '16px'
                 }}>
-                    {messages.map((m, i) => (
-                        <div key={i} className="message-row" style={{
-                            display: 'flex', gap: '12px',
-                            justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start'
-                        }}>
-                            {/* Bot icon (left) */}
-                            {m.role === 'assistant' && (
-                                <div style={{
-                                    background: 'linear-gradient(135deg, #8b5cf6, #06b6d4)',
-                                    width: '32px', height: '32px', borderRadius: '50%',
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    flexShrink: 0
-                                }}>
-                                    <Bot size={18} color="#fff" />
-                                </div>
-                            )}
-
-                            {/* Message bubble */}
-                            <div style={{
-                                maxWidth: '70%', padding: '12px 16px', borderRadius: '16px',
-                                background: m.role === 'user'
-                                    ? 'linear-gradient(135deg, rgba(139, 92, 246, 0.4), rgba(6, 182, 212, 0.4))'
-                                    : 'rgba(15, 23, 42, 0.7)',
-                                border: '1px solid var(--glass-border)', lineHeight: '1.5', overflowX: 'auto',
+                    {loadingSession ? (
+                        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                            <div className="typing-indicator">
+                                <span></span><span></span><span></span>
+                            </div>
+                        </div>
+                    ) : (
+                        messages.map((m, i) => (
+                            <div key={i} className="message-row" style={{
+                                display: 'flex', gap: '12px',
+                                justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start'
                             }}>
-                                {m.role === 'user' ? (
-                                    <div style={{ whiteSpace: 'pre-wrap' }}>{m.content}</div>
-                                ) : (
-                                    <div className="markdown-body">
-                                        {m.content
-                                            ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.content}</ReactMarkdown>
-                                            : (isGenerating && i === messages.length - 1)
-                                                ? <div className="typing-indicator"><span></span><span></span><span></span></div>
-                                                : ""
-                                        }
-                                        {/* Source citations (only for last assistant message when not generating) */}
-                                        {m.role === 'assistant' && i === messages.length - 1 &&
-                                         sources.length > 0 && !isGenerating && (
-                                            <div style={{
-                                                marginTop: '8px', fontSize: '12px', color: '#8892b0',
-                                                borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '4px'
-                                            }}>
-                                                <strong>Sources:</strong> {sources.map(s => `[${s.chunk_index}]`).join(', ')}
-                                            </div>
-                                        )}
+                                {/* Bot icon */}
+                                {m.role === 'assistant' && (
+                                    <div style={{
+                                        background: 'linear-gradient(135deg, #8b5cf6, #06b6d4)',
+                                        width: '32px', height: '32px', borderRadius: '50%',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        flexShrink: 0
+                                    }}>
+                                        <Bot size={18} color="#fff" />
+                                    </div>
+                                )}
+
+                                {/* Bubble */}
+                                <div style={{
+                                    maxWidth: '70%', padding: '12px 16px', borderRadius: '16px',
+                                    background: m.role === 'user'
+                                        ? 'linear-gradient(135deg, rgba(139, 92, 246, 0.4), rgba(6, 182, 212, 0.4))'
+                                        : 'rgba(15, 23, 42, 0.7)',
+                                    border: '1px solid var(--glass-border)', lineHeight: '1.5', overflowX: 'auto',
+                                }}>
+                                    {m.role === 'user' ? (
+                                        <div style={{ whiteSpace: 'pre-wrap' }}>{m.content}</div>
+                                    ) : (
+                                        <div className="markdown-body">
+                                            {m.content
+                                                ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.content}</ReactMarkdown>
+                                                : (isGenerating && i === messages.length - 1)
+                                                    ? <div className="typing-indicator"><span></span><span></span><span></span></div>
+                                                    : ""
+                                            }
+                                            {/* Sources */}
+                                            {m.role === 'assistant' && i === messages.length - 1 &&
+                                             sources.length > 0 && !isGenerating && (
+                                                <div style={{
+                                                    marginTop: '8px', fontSize: '12px', color: '#8892b0',
+                                                    borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '4px'
+                                                }}>
+                                                    <strong>Sources:</strong> {sources.map(s => `[${s.chunk_index}]`).join(', ')}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* User icon */}
+                                {m.role === 'user' && (
+                                    <div style={{
+                                        background: 'rgba(255, 255, 255, 0.1)', width: '32px', height: '32px',
+                                        borderRadius: '50%', display: 'flex', alignItems: 'center',
+                                        justifyContent: 'center', flexShrink: 0
+                                    }}>
+                                        <User size={18} color="#fff" />
                                     </div>
                                 )}
                             </div>
-
-                            {/* User icon (right) */}
-                            {m.role === 'user' && (
-                                <div style={{
-                                    background: 'rgba(255, 255, 255, 0.1)', width: '32px', height: '32px',
-                                    borderRadius: '50%', display: 'flex', alignItems: 'center',
-                                    justifyContent: 'center', flexShrink: 0
-                                }}>
-                                    <User size={18} color="#fff" />
-                                </div>
-                            )}
-                        </div>
-                    ))}
+                        ))
+                    )}
                     <div ref={messagesEndRef} />
                 </div>
 
-                {/* Input area */}
+                {/* Input */}
                 <div style={{
                     padding: '16px', borderTop: '1px solid var(--glass-border)',
                     display: 'flex', gap: '12px', alignItems: 'flex-end'
