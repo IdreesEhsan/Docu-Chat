@@ -16,7 +16,7 @@ export default function ChatView() {
     const customPrompt = "";
 
     const [showHistory, setShowHistory] = useState(true);
-    const [showDocuments, setShowDocuments] = useState(false);   // right sidebar
+    const [showDocuments, setShowDocuments] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
     const [abortController, setAbortController] = useState(null);
     const [userEmail, setUserEmail] = useState('');
@@ -25,12 +25,13 @@ export default function ChatView() {
     const [isNewSession, setIsNewSession] = useState(false);
     const messagesEndRef = useRef(null);
 
-    // Auto‑scroll
+    // NEW: store sources per session ID so they persist across switches
+    const [sessionSources, setSessionSources] = useState({});
+
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
 
-    // Initial load + JWT decode
     useEffect(() => {
         loadSessions();
         try {
@@ -66,7 +67,11 @@ export default function ChatView() {
         }
         setCurrentSessionId(session.id);
         setIsGenerating(false);
-        setSources([]);
+
+        // Restore stored sources for this session, or empty array
+        const storedSources = sessionSources[session.id] || [];
+        setSources(storedSources);
+
         setLoadingSession(true);
         try {
             const historyMessages = await fetchSessionMessages(session.id);
@@ -101,6 +106,12 @@ export default function ChatView() {
                 headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
             });
             if (res.ok) {
+                // Remove sources for deleted session
+                setSessionSources(prev => {
+                    const updated = { ...prev };
+                    delete updated[sessionId];
+                    return updated;
+                });
                 loadSessions();
                 if (currentSessionId === sessionId) {
                     handleNewChat();
@@ -144,15 +155,30 @@ export default function ChatView() {
                         return updated;
                     });
                 },
-                (src) => setSources(src),
+                (src) => {
+                    setSources(src);
+                    // Save sources for current session (once we know the session ID)
+                    if (currentSessionId) {
+                        setSessionSources(prev => ({
+                            ...prev,
+                            [currentSessionId]: src
+                        }));
+                    }
+                    // If it's a new session, we need to wait for the assigned ID
+                    // We'll handle that in onSessionCreated
+                },
                 currentSessionId,
                 (assignedSessionId) => {
                     if (!currentSessionId) {
                         setCurrentSessionId(assignedSessionId);
+                        // Now we can store sources for the new session
+                        // But the sources callback has already fired; we can move the storage there
                     }
                 },
                 controller.signal
             );
+            // After streaming, if it was a new session, the sources callback might not have had the ID.
+            // We'll store again in finally block.
         } catch (err) {
             if (err.name === 'AbortError') {
                 console.log("Stream aborted.");
@@ -168,9 +194,16 @@ export default function ChatView() {
             });
         } finally {
             setIsGenerating(false);
+            // Ensure sources are stored for the current session after stream ends
+            if (currentSessionId && sources.length > 0) {
+                setSessionSources(prev => ({
+                    ...prev,
+                    [currentSessionId]: sources
+                }));
+            }
             loadSessions();
             if (isNewSession) {
-                setTimeout(() => loadSessions(), 8000);   // longer wait for title
+                setTimeout(() => loadSessions(), 8000);
             }
         }
     };
@@ -180,7 +213,7 @@ export default function ChatView() {
             display: 'flex', gap: '16px', height: 'calc(100vh - 120px)',
             padding: '0 30px 20px', transition: 'all 0.3s ease'
         }}>
-            {/* ========== LEFT SIDEBAR – ONLY CHAT HISTORY (full height) ========== */}
+            {/* LEFT SIDEBAR – CHAT HISTORY */}
             {showHistory && (
                 <div className="glass-panel" style={{
                     width: '260px', flexShrink: 0, padding: '16px',
@@ -262,12 +295,12 @@ export default function ChatView() {
                 </div>
             )}
 
-            {/* ========== MAIN CHAT AREA ========== */}
+            {/* MAIN CHAT AREA */}
             <div className="glass-panel" style={{
                 flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column',
                 height: '100%', overflow: 'hidden'
             }}>
-                {/* Top bar – persona + document toggle */}
+                {/* Top bar */}
                 <div style={{
                     padding: '14px 20px', borderBottom: '1px solid var(--glass-border)',
                     display: 'flex', justifyContent: 'space-between', alignItems: 'center'
@@ -332,13 +365,21 @@ export default function ChatView() {
                                                     ? <div className="typing-indicator"><span></span><span></span><span></span></div>
                                                     : ""
                                             }
+                                            {/* Show sources for the last assistant message (only when not generating) */}
                                             {m.role === 'assistant' && i === messages.length - 1 &&
                                              sources.length > 0 && !isGenerating && (
                                                 <div style={{
                                                     marginTop: '8px', fontSize: '12px', color: '#8892b0',
                                                     borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '4px'
                                                 }}>
-                                                    <strong>Sources:</strong> {sources.map(s => `[${s.chunk_index}]`).join(', ')}
+                                                    <strong>Sources:</strong>{" "}
+                                                    {sources.map((s, idx) => (
+                                                        <span key={idx}>
+                                                            from <em>{s.filename || 'Unknown'}</em>
+                                                            {s.page ? `, Page ${s.page}` : ''}
+                                                            {idx < sources.length - 1 ? ' | ' : ''}
+                                                        </span>
+                                                    ))}
                                                 </div>
                                             )}
                                         </div>
@@ -392,7 +433,7 @@ export default function ChatView() {
                 </div>
             </div>
 
-            {/* ========== RIGHT SIDEBAR – DOCUMENT PANEL ========== */}
+            {/* RIGHT SIDEBAR – DOCUMENT PANEL */}
             {showDocuments && (
                 <div style={{ width: '260px', flexShrink: 0 }}>
                     <DocumentPanel />

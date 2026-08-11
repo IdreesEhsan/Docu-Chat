@@ -18,7 +18,6 @@ def list_sessions(user = Depends(get_current_user)):
 @router.delete("/sessions/{session_id}")
 def delete_session(session_id: str, user=Depends(get_current_user)):
     try:
-        # Delete session (messages will be deleted via CASCADE)
         db_service.supabase.table("chat_sessions").delete().eq("id", session_id).execute()
         return {"status": "deleted"}
     except Exception as e:
@@ -43,18 +42,9 @@ async def generate_and_update_title(session_id: str, prompt: str):
 # ---------- Main RAG Chat Endpoint ----------
 @router.post("")
 async def chat_endpoint(request: ChatRequest, user = Depends(get_current_user)):
-    """
-    Handles a user message:
-    1. Creates a new session if needed.
-    2. Saves user message.
-    3. Retrieves top‑k chunks via vector similarity.
-    4. If no relevant chunks, refuses to answer.
-    5. Otherwise, streams the LLM response with source citations.
-    """
     current_session_id = request.session_id
     is_new_session = False
 
-    # Create session if not provided
     if not current_session_id:
         is_new_session = True
         session = db_service.create_chat_session(
@@ -62,7 +52,6 @@ async def chat_endpoint(request: ChatRequest, user = Depends(get_current_user)):
         )
         if session:
             current_session_id = session["id"]
-            # Background title generation
             if request.messages:
                 asyncio.create_task(
                     generate_and_update_title(
@@ -77,7 +66,7 @@ async def chat_endpoint(request: ChatRequest, user = Depends(get_current_user)):
 
     # Retrieve relevant chunks
     query = request.messages[-1].content
-    query_embedding = get_embedding(query)           # synchronous local call
+    query_embedding = get_embedding(query)
     retrieved = db_service.similarity_search(query_embedding, top_k=7, threshold=0.15)
 
     context_chunks = [
@@ -85,7 +74,9 @@ async def chat_endpoint(request: ChatRequest, user = Depends(get_current_user)):
             "content": c["content"],
             "chunk_index": c["chunk_index"],
             "document_id": c["document_id"],
-            "similarity": c["similarity"]
+            "similarity": c["similarity"],
+            "filename": c.get("filename", "Unknown"),
+            "metadata": c.get("metadata", {})
         }
         for c in retrieved
     ]
@@ -103,21 +94,35 @@ async def chat_endpoint(request: ChatRequest, user = Depends(get_current_user)):
 
     # Stream LLM answer
     async def generate_and_save():
+        # 1. Immediately tell the frontend which session we're using
+        yield f"data: {json.dumps({'session_id': current_session_id})}\n\n"
+
         full_response = ""
         try:
             async for token in stream_rag_chat(request.messages, context_chunks):
-                full_response += token
-                yield f"data: {json.dumps({'content': token})}\n\n"
+                # Ignore None / empty strings to prevent "null" in UI
+                if token and str(token).strip():
+                    full_response += token
+                    yield f"data: {json.dumps({'content': token})}\n\n"
         except Exception as e:
             logger.error(f"LLM error: {e}")
             yield f"data: {json.dumps({'error': str(e)})}\n\n"
         finally:
-            # Save final assistant message
+            # If nothing was generated (model returned only nulls or empty), provide a fallback
+            if not full_response.strip():
+                full_response = "I couldn't generate a response. Please try rephrasing your question."
+                yield f"data: {json.dumps({'content': full_response})}\n\n"
+
             if current_session_id and full_response:
                 db_service.save_message(current_session_id, role="assistant", content=full_response)
-            # Emit source list
+
             sources = [
-                {"chunk_index": c["chunk_index"], "document_id": c["document_id"]}
+                {
+                    "chunk_index": c["chunk_index"],
+                    "document_id": c["document_id"],
+                    "filename": c.get("filename", "Unknown"),
+                    "page": c.get("metadata", {}).get("page", "N/A")
+                }
                 for c in context_chunks
             ]
             yield f"data: {json.dumps({'sources': sources})}\n\n"
