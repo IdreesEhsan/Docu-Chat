@@ -21,8 +21,8 @@ export default function ChatView() {
         { role: 'assistant', content: 'Hello! Upload documents and ask questions.' }
     ]);
     const [input, setInput] = useState('');
-    // Fixed persona – always RAG
-    const systemPrompt = "RAG";
+    // Fixed persona – always RAG Pipeline Agent
+    const systemPrompt = "RAG Pipeline Agent";
     const customPrompt = "";   // no custom overrides
 
     const [showHistory, setShowHistory] = useState(true);
@@ -250,7 +250,7 @@ export default function ChatView() {
                             <History size={16} />
                         </button>
                         <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-                            Persona: <span style={{ color: 'var(--accent-cyan)', fontWeight: '600' }}>RAG</span>
+                            Persona: <span style={{ color: 'var(--accent-cyan)', fontWeight: '600' }}>RAG Pipeline Agent</span>
                         </div>
                     </div>
                     {/* No configure prompt button – persona is fixed */}
@@ -358,7 +358,7 @@ export default function ChatView() {
                 </div>
             </div>
 
-            {/* No Prompt Config Sidebar – persona is fixed to RAG */}
+            {/* No Prompt Config Sidebar – persona is fixed to RAG Pipeline Agent*/}
         </div>
     );
 }
