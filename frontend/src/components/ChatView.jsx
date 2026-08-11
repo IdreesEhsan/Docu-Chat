@@ -1,23 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { streamRagChat, fetchSessions, fetchSessionMessages } from '../services/api';
-import { Send, Bot, User, Settings, Plus, MessageSquare, History } from 'lucide-react';
+import { Send, Bot, User, Plus, MessageSquare, History } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
-const PRESET_PROMPTS = [
-    "AI Tech Mentor",
-    "Executive Assistant",
-    "Creative Writer",
-    "Strict Code Auditor"
-];
-
 /**
  * ChatView – the main chat interface with RAG capabilities.
+ * Only one persona is used: "RAG" (document‑grounded).
  * Features:
  * - Real‑time streaming AI responses (Groq)
  * - Document‑grounded answers with inline source citations
  * - Chat session management (create, switch, delete)
- * - Custom system prompt / persona selection
  * - Glassmorphism UI with message animations, typing indicator, send pulse
  */
 export default function ChatView() {
@@ -28,9 +21,10 @@ export default function ChatView() {
         { role: 'assistant', content: 'Hello! Upload documents and ask questions.' }
     ]);
     const [input, setInput] = useState('');
-    const [systemPrompt, setSystemPrompt] = useState('AI Tech Mentor');
-    const [customPrompt, setCustomPrompt] = useState('');
-    const [showConfig, setShowConfig] = useState(false);
+    // Fixed persona – always RAG
+    const systemPrompt = "RAG";
+    const customPrompt = "";   // no custom overrides
+
     const [showHistory, setShowHistory] = useState(true);
     const [isGenerating, setIsGenerating] = useState(false);
     const [abortController, setAbortController] = useState(null);
@@ -75,15 +69,13 @@ export default function ChatView() {
 
     // ---------- Session handling ----------
     const handleSelectSession = async (session) => {
-        // Abort any in‑flight stream before switching
         if (isGenerating && abortController) {
             abortController.abort();
             setIsGenerating(false);
         }
         setCurrentSessionId(session.id);
-        setSystemPrompt(session.system_prompt);
         setIsGenerating(false);
-        setSources([]);                               // clear old sources
+        setSources([]);
         try {
             const historyMessages = await fetchSessionMessages(session.id);
             const formattedHistory = historyMessages.map(msg => ({
@@ -99,7 +91,6 @@ export default function ChatView() {
     };
 
     const handleNewChat = () => {
-        // Abort active stream if any
         if (isGenerating && abortController) {
             abortController.abort();
             setIsGenerating(false);
@@ -119,7 +110,7 @@ export default function ChatView() {
         setInput('');
         setIsGenerating(true);
 
-        const assistantIndex = newMessages.length;                // where the AI response will appear
+        const assistantIndex = newMessages.length;
         setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
 
         const controller = new AbortController();
@@ -130,7 +121,6 @@ export default function ChatView() {
                 newMessages,
                 systemPrompt,
                 customPrompt,
-                // onChunk – append token to assistant message
                 (chunk) => {
                     setMessages(prev => {
                         const updated = [...prev];
@@ -141,10 +131,8 @@ export default function ChatView() {
                         return updated;
                     });
                 },
-                // onSources – store the final list of source chunks
                 (src) => setSources(src),
                 currentSessionId,
-                // onSessionCreated – assign new session ID and refresh list
                 (assignedSessionId) => {
                     if (!currentSessionId) {
                         setCurrentSessionId(assignedSessionId);
@@ -168,7 +156,7 @@ export default function ChatView() {
             });
         } finally {
             setIsGenerating(false);
-            loadSessions();              // refresh session list (e.g., new title)
+            loadSessions();
         }
     };
 
@@ -251,7 +239,7 @@ export default function ChatView() {
                 flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column',
                 height: '100%', overflow: 'hidden'
             }}>
-                {/* Top bar */}
+                {/* Top bar – simplified */}
                 <div style={{
                     padding: '14px 20px', borderBottom: '1px solid var(--glass-border)',
                     display: 'flex', justifyContent: 'space-between', alignItems: 'center'
@@ -262,15 +250,10 @@ export default function ChatView() {
                             <History size={16} />
                         </button>
                         <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-                            Persona: <span style={{ color: 'var(--accent-cyan)', fontWeight: '600' }}>
-                                {customPrompt ? "Custom" : systemPrompt}
-                            </span>
+                            Persona: <span style={{ color: 'var(--accent-cyan)', fontWeight: '600' }}>RAG</span>
                         </div>
                     </div>
-                    <button className="glass-button" style={{ padding: '6px 12px', fontSize: '12px' }}
-                        onClick={() => setShowConfig(!showConfig)}>
-                        <Settings size={14} /> {showConfig ? 'Close Prompt Config' : 'Configure Prompt'}
-                    </button>
+                    {/* No configure prompt button – persona is fixed */}
                 </div>
 
                 {/* Messages container */}
@@ -375,43 +358,7 @@ export default function ChatView() {
                 </div>
             </div>
 
-            {/* ========== 3. PROMPT CONFIG SIDEBAR ========== */}
-            {showConfig && (
-                <div className="glass-panel" style={{
-                    width: '280px', flexShrink: 0, padding: '16px',
-                    display: 'flex', flexDirection: 'column', gap: '16px'
-                }}>
-                    <h3 style={{ fontSize: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <Settings size={16} /> Prompt Config
-                    </h3>
-                    <div>
-                        <label style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Role Preset</label>
-                        <select
-                            className="glass-select"
-                            value={systemPrompt}
-                            onChange={(e) => { setSystemPrompt(e.target.value); setCustomPrompt(''); }}
-                            style={{ marginTop: '6px' }}
-                        >
-                            {PRESET_PROMPTS.map(p => (
-                                <option key={p} value={p} style={{ background: '#0f172a' }}>{p}</option>
-                            ))}
-                        </select>
-                    </div>
-                    <div>
-                        <label style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                            Override Custom Prompt
-                        </label>
-                        <textarea
-                            className="glass-textarea"
-                            rows={5}
-                            placeholder="Enter custom instructions..."
-                            value={customPrompt}
-                            onChange={(e) => setCustomPrompt(e.target.value)}
-                            style={{ marginTop: '6px' }}
-                        />
-                    </div>
-                </div>
-            )}
+            {/* No Prompt Config Sidebar – persona is fixed to RAG */}
         </div>
     );
 }
