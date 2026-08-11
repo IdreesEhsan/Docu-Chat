@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
 import ChatView from './components/ChatView';
-import DocumentPanel from './components/DocumentPanel';
 import AuthView from './components/AuthView';
 
 export default function App() {
@@ -26,7 +25,6 @@ export default function App() {
     <div className="app-container" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ flex: 1 }}>
-          {/* Pass dummy props since we only have one tab */}
           <Navbar activeTab="chat" setActiveTab={() => {}} />
         </div>
         <div style={{ paddingRight: '30px' }}>
@@ -39,13 +37,8 @@ export default function App() {
           </button>
         </div>
       </div>
-      <main style={{ flex: 1, display: 'flex' }}>
-        <div style={{ width: '280px', flexShrink: 0 }}>
-          <DocumentPanel />
-        </div>
-        <div style={{ flex: 1 }}>
-          <ChatView />
-        </div>
+      <main style={{ flex: 1 }}>
+        <ChatView />
       </main>
     </div>
   );
