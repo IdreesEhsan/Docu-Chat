@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+python-multipart
+supabase
+groq
+openai
+pypdf
+python-docx
+pydantic-settings
