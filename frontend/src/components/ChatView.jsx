@@ -20,18 +20,18 @@ export default function ChatView() {
     const [abortController, setAbortController] = useState(null);
     const [userEmail, setUserEmail] = useState('');
     const [sources, setSources] = useState([]);
-    const [loadingSession, setLoadingSession] = useState(false);   // <-- NEW
+    const [loadingSession, setLoadingSession] = useState(false);
+    const [isNewSession, setIsNewSession] = useState(false);   // <-- track new session
     const messagesEndRef = useRef(null);
 
-    // Auto-scroll
+    // Auto‑scroll when messages change
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
 
-    // Initial load + polling sessions every 3s for title updates
+    // Initial load: sessions + decode JWT (no polling)
     useEffect(() => {
         loadSessions();
-        // Decode JWT
         try {
             const token = localStorage.getItem('access_token');
             if (token) {
@@ -47,12 +47,6 @@ export default function ChatView() {
             console.error('Failed to decode JWT:', err);
             setUserEmail('Logged In User');
         }
-
-        // Poll sessions every 3 seconds to catch title updates
-        const interval = setInterval(() => {
-            loadSessions();
-        }, 3000);
-        return () => clearInterval(interval);
     }, []);
 
     const loadSessions = async () => {
@@ -73,7 +67,6 @@ export default function ChatView() {
         setIsGenerating(false);
         setSources([]);
         setLoadingSession(true);
-
         try {
             const historyMessages = await fetchSessionMessages(session.id);
             const formattedHistory = historyMessages.map(msg => ({
@@ -108,6 +101,9 @@ export default function ChatView() {
         setInput('');
         setIsGenerating(true);
 
+        const isNew = !currentSessionId;
+        setIsNewSession(isNew);                      // mark new session
+
         const assistantIndex = newMessages.length;
         setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
 
@@ -134,7 +130,6 @@ export default function ChatView() {
                 (assignedSessionId) => {
                     if (!currentSessionId) {
                         setCurrentSessionId(assignedSessionId);
-                        loadSessions();
                     }
                 },
                 controller.signal
@@ -154,7 +149,12 @@ export default function ChatView() {
             });
         } finally {
             setIsGenerating(false);
-            loadSessions();
+            loadSessions();                   // immediate refresh
+            if (isNewSession) {
+                setTimeout(() => {
+                    loadSessions();           // one delayed refresh for title
+                }, 5000);
+            }
         }
     };
 
@@ -163,7 +163,7 @@ export default function ChatView() {
             display: 'flex', gap: '16px', height: 'calc(100vh - 120px)',
             padding: '0 30px 20px', transition: 'all 0.3s ease'
         }}>
-            {/* LEFT COLUMN – two glass panels */}
+            {/* ========== LEFT COLUMN – two glass panels ========== */}
             {showHistory && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '260px', flexShrink: 0 }}>
                     {/* Chat History Panel */}
@@ -227,12 +227,12 @@ export default function ChatView() {
                         </div>
                     </div>
 
-                    {/* Document Panel */}
+                    {/* Document Panel – separate box */}
                     <DocumentPanel />
                 </div>
             )}
 
-            {/* MAIN CHAT AREA */}
+            {/* ========== MAIN CHAT AREA ========== */}
             <div className="glass-panel" style={{
                 flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column',
                 height: '100%', overflow: 'hidden'
