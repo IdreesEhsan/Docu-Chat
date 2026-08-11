@@ -3,7 +3,7 @@ uvicorn
 python-multipart
 supabase
 groq
-openai
+sentence-transformers
 pypdf
 python-docx
 pydantic-settings
