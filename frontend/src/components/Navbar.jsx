@@ -9,7 +9,16 @@ export default function Navbar({ activeTab, setActiveTab }) {
                     <Sparkles size={24} color="#fff" />
                 </div>
                 <div>
-                    <h1 style={{ fontSize: '20px', fontWeight: '700', background: 'linear-gradient(90deg, #fff, #8892b0)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                    <h1
+                        className="docuchat-title"
+                        style={{
+                            fontSize: '20px', fontWeight: '700',
+                            background: 'linear-gradient(90deg, #fff, #00f2fe)',
+                            WebkitBackgroundClip: 'text',
+                            WebkitTextFillColor: 'transparent',
+                            display: 'inline-block'
+                        }}
+                    >
                         DocuChat
                     </h1>
                     <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>RAG-powered Document Q&A</p>

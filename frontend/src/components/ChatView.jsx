@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { streamRagChat, fetchSessions, fetchSessionMessages } from '../services/api';
-import { Send, Bot, User, Plus, MessageSquare, History, Trash2 } from 'lucide-react';
+import { Send, Bot, User, Plus, MessageSquare, History, Trash2, FileText } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import DocumentPanel from './DocumentPanel';
@@ -16,6 +16,7 @@ export default function ChatView() {
     const customPrompt = "";
 
     const [showHistory, setShowHistory] = useState(true);
+    const [showDocuments, setShowDocuments] = useState(false);   // right sidebar
     const [isGenerating, setIsGenerating] = useState(false);
     const [abortController, setAbortController] = useState(null);
     const [userEmail, setUserEmail] = useState('');
@@ -29,7 +30,7 @@ export default function ChatView() {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
 
-    // Initial load: sessions + decode JWT
+    // Initial load + JWT decode
     useEffect(() => {
         loadSessions();
         try {
@@ -92,15 +93,12 @@ export default function ChatView() {
         setSources([]);
     };
 
-    // --- Delete session ---
     const handleDeleteSession = async (sessionId) => {
         try {
             const BASE = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/+$/, '');
             const res = await fetch(`${BASE}/api/chat/sessions/${sessionId}`, {
                 method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('access_token')}`
-                }
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
             });
             if (res.ok) {
                 loadSessions();
@@ -172,7 +170,7 @@ export default function ChatView() {
             setIsGenerating(false);
             loadSessions();
             if (isNewSession) {
-                setTimeout(() => loadSessions(), 5000);  // one-time title refresh
+                setTimeout(() => loadSessions(), 8000);   // longer wait for title
             }
         }
     };
@@ -182,98 +180,94 @@ export default function ChatView() {
             display: 'flex', gap: '16px', height: 'calc(100vh - 120px)',
             padding: '0 30px 20px', transition: 'all 0.3s ease'
         }}>
-            {/* LEFT COLUMN */}
+            {/* ========== LEFT SIDEBAR – ONLY CHAT HISTORY (full height) ========== */}
             {showHistory && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '260px', flexShrink: 0 }}>
-                    {/* Chat History Panel */}
-                    <div className="glass-panel" style={{
-                        padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px',
-                        flex: '1 1 auto', overflow: 'hidden'
-                    }}>
-                        <button className="glass-button" style={{
-                            width: '100%', justifyContent: 'center',
-                            background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.4), rgba(6, 182, 212, 0.4))'
-                        }} onClick={handleNewChat}>
-                            <Plus size={16} /> New Chat
-                        </button>
-                        <div style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '600', marginTop: '8px' }}>
-                            CHAT HISTORY
-                        </div>
-                        <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                            {sessions.map(s => (
+                <div className="glass-panel" style={{
+                    width: '260px', flexShrink: 0, padding: '16px',
+                    display: 'flex', flexDirection: 'column', gap: '12px',
+                    height: '100%', overflow: 'hidden'
+                }}>
+                    <button className="glass-button" style={{
+                        width: '100%', justifyContent: 'center',
+                        background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.4), rgba(6, 182, 212, 0.4))'
+                    }} onClick={handleNewChat}>
+                        <Plus size={16} /> New Chat
+                    </button>
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '600', marginTop: '8px' }}>
+                        CHAT HISTORY
+                    </div>
+                    <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {sessions.map(s => (
+                            <div
+                                key={s.id}
+                                className="session-item"
+                                style={{
+                                    padding: '8px 10px', borderRadius: '10px', cursor: 'pointer',
+                                    background: currentSessionId === s.id ? 'rgba(139, 92, 246, 0.25)' : 'rgba(255, 255, 255, 0.03)',
+                                    border: currentSessionId === s.id ? '1px solid var(--accent-cyan)' : '1px solid rgba(255, 255, 255, 0.05)',
+                                    fontSize: '13px', display: 'flex', alignItems: 'center',
+                                    gap: '8px', whiteSpace: 'nowrap', overflow: 'hidden',
+                                    transition: 'all 0.2s'
+                                }}
+                            >
                                 <div
-                                    key={s.id}
-                                    className="session-item"
+                                    onClick={() => handleSelectSession(s)}
+                                    style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, overflow: 'hidden' }}
+                                >
+                                    <MessageSquare size={14} style={{ flexShrink: 0, color: 'var(--accent-cyan)' }} />
+                                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.title}</span>
+                                </div>
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDeleteSession(s.id);
+                                    }}
+                                    className="glass-button"
                                     style={{
-                                        padding: '8px 10px', borderRadius: '10px', cursor: 'pointer',
-                                        background: currentSessionId === s.id ? 'rgba(139, 92, 246, 0.25)' : 'rgba(255, 255, 255, 0.03)',
-                                        border: currentSessionId === s.id ? '1px solid var(--accent-cyan)' : '1px solid rgba(255, 255, 255, 0.05)',
-                                        fontSize: '13px', display: 'flex', alignItems: 'center',
-                                        gap: '8px', whiteSpace: 'nowrap', overflow: 'hidden',
-                                        transition: 'all 0.2s'
+                                        padding: '2px 6px', background: 'transparent',
+                                        border: 'none', cursor: 'pointer', flexShrink: 0
                                     }}
                                 >
-                                    <div
-                                        onClick={() => handleSelectSession(s)}
-                                        style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, overflow: 'hidden' }}
-                                    >
-                                        <MessageSquare size={14} style={{ flexShrink: 0, color: 'var(--accent-cyan)' }} />
-                                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.title}</span>
-                                    </div>
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleDeleteSession(s.id);
-                                        }}
-                                        className="glass-button"
-                                        style={{
-                                            padding: '2px 6px', background: 'transparent',
-                                            border: 'none', cursor: 'pointer', flexShrink: 0
-                                        }}
-                                    >
-                                        <Trash2 size={14} color="#ff7675" />
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-                        {/* User footer */}
-                        <div style={{
-                            marginTop: 'auto', padding: '10px 12px', borderRadius: '12px',
-                            background: 'rgba(15, 23, 42, 0.6)', border: '1px solid var(--glass-border)',
-                            display: 'flex', alignItems: 'center', gap: '10px'
-                        }}>
-                            <div style={{
-                                width: '32px', height: '32px', borderRadius: '50%',
-                                background: 'linear-gradient(135deg, #8b5cf6, #06b6d4)',
-                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                fontWeight: 'bold', fontSize: '14px', color: '#fff', flexShrink: 0
-                            }}>
-                                {userEmail ? userEmail.charAt(0).toUpperCase() : 'U'}
+                                    <Trash2 size={14} color="#ff7675" />
+                                </button>
                             </div>
-                            <div style={{ overflow: 'hidden', flex: 1 }}>
-                                <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                    Logged in as
-                                </div>
-                                <div style={{
-                                    fontSize: '12px', color: '#fff', fontWeight: '500',
-                                    textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap'
-                                }}>
-                                    {userEmail || 'Active User'}
-                                </div>
+                        ))}
+                    </div>
+                    {/* User footer */}
+                    <div style={{
+                        marginTop: 'auto', padding: '10px 12px', borderRadius: '12px',
+                        background: 'rgba(15, 23, 42, 0.6)', border: '1px solid var(--glass-border)',
+                        display: 'flex', alignItems: 'center', gap: '10px'
+                    }}>
+                        <div style={{
+                            width: '32px', height: '32px', borderRadius: '50%',
+                            background: 'linear-gradient(135deg, #8b5cf6, #06b6d4)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontWeight: 'bold', fontSize: '14px', color: '#fff', flexShrink: 0
+                        }}>
+                            {userEmail ? userEmail.charAt(0).toUpperCase() : 'U'}
+                        </div>
+                        <div style={{ overflow: 'hidden', flex: 1 }}>
+                            <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                Logged in as
+                            </div>
+                            <div style={{
+                                fontSize: '12px', color: '#fff', fontWeight: '500',
+                                textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap'
+                            }}>
+                                {userEmail || 'Active User'}
                             </div>
                         </div>
                     </div>
-
-                    {/* Document Panel */}
-                    <DocumentPanel />
                 </div>
             )}
 
-            {/* MAIN CHAT AREA */}
+            {/* ========== MAIN CHAT AREA ========== */}
             <div className="glass-panel" style={{
                 flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column',
                 height: '100%', overflow: 'hidden'
             }}>
+                {/* Top bar – persona + document toggle */}
                 <div style={{
                     padding: '14px 20px', borderBottom: '1px solid var(--glass-border)',
                     display: 'flex', justifyContent: 'space-between', alignItems: 'center'
@@ -287,8 +281,16 @@ export default function ChatView() {
                             Persona: <span style={{ color: 'var(--accent-cyan)', fontWeight: '600' }}>RAG</span>
                         </div>
                     </div>
+                    <button
+                        className={`glass-button ${showDocuments ? 'nav-tab-active' : ''}`}
+                        style={{ padding: '6px 12px', fontSize: '12px' }}
+                        onClick={() => setShowDocuments(!showDocuments)}
+                    >
+                        <FileText size={14} /> {showDocuments ? 'Hide Documents' : 'Documents'}
+                    </button>
                 </div>
 
+                {/* Messages */}
                 <div style={{
                     flex: 1, padding: '20px', overflowY: 'auto',
                     display: 'flex', flexDirection: 'column', gap: '16px'
@@ -357,6 +359,7 @@ export default function ChatView() {
                     <div ref={messagesEndRef} />
                 </div>
 
+                {/* Input */}
                 <div style={{
                     padding: '16px', borderTop: '1px solid var(--glass-border)',
                     display: 'flex', gap: '12px', alignItems: 'flex-end'
@@ -388,6 +391,13 @@ export default function ChatView() {
                     </button>
                 </div>
             </div>
+
+            {/* ========== RIGHT SIDEBAR – DOCUMENT PANEL ========== */}
+            {showDocuments && (
+                <div style={{ width: '260px', flexShrink: 0 }}>
+                    <DocumentPanel />
+                </div>
+            )}
         </div>
     );
 }

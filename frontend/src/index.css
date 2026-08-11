@@ -200,3 +200,17 @@ body::before {
   transform: translateX(4px);
   background: rgba(255,255,255,0.05) !important;
 }
+
+/* DocuChat title glow animation */
+.docuchat-title {
+  animation: titleGlow 2.5s ease-in-out infinite alternate;
+}
+
+@keyframes titleGlow {
+  0% {
+    text-shadow: 0 0 4px rgba(0, 242, 254, 0.3), 0 0 8px rgba(0, 242, 254, 0.1);
+  }
+  100% {
+    text-shadow: 0 0 8px rgba(0, 242, 254, 0.6), 0 0 16px rgba(0, 242, 254, 0.3), 0 0 24px rgba(192, 67, 255, 0.2);
+  }
+}
