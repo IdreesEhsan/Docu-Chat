@@ -68,7 +68,8 @@ export async function uploadDocument(file) {
 }
 
 export async function fetchDocuments() {
-    const res = await fetch(`${API_BASE_URL}/documents`, {
+    // ✅ trailing slash matches backend endpoint
+    const res = await fetch(`${API_BASE_URL}/documents/`, {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
     });
     if (!res.ok) throw new Error('Failed to fetch documents');
