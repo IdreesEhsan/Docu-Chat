@@ -108,8 +108,19 @@ If the answer isn't found, the system will respond with "I cannot find the answe
 📊 Chunking Strategy
 Documents are split using a custom word‑based chunker with:
 
-Chunk size: 500 words
+Chunk size: 1000 words
 
-Overlap: 50 words
+Overlap: 100 words
 
 Metadata preserved: page numbers (PDF), document name
+
+📝 RAG Prompt
+The system prompt explicitly instructs the model to:
+
+Answer only from the provided context
+
+Refuse to answer if the information is missing
+
+Not include inline citations (sources are displayed separately)
+
+Avoid prior knowledge
