@@ -25,7 +25,7 @@ export default function ChatView() {
     const [isNewSession, setIsNewSession] = useState(false);
     const messagesEndRef = useRef(null);
 
-    // NEW: store sources per session ID so they persist across switches
+    // Store sources per session ID so they persist across switches
     const [sessionSources, setSessionSources] = useState({});
 
     useEffect(() => {
@@ -140,6 +140,9 @@ export default function ChatView() {
         const controller = new AbortController();
         setAbortController(controller);
 
+        // Local variable to capture sources from the callback
+        let capturedSources = [];
+
         try {
             await streamRagChat(
                 newMessages,
@@ -156,29 +159,17 @@ export default function ChatView() {
                     });
                 },
                 (src) => {
+                    capturedSources = src;
                     setSources(src);
-                    // Save sources for current session (once we know the session ID)
-                    if (currentSessionId) {
-                        setSessionSources(prev => ({
-                            ...prev,
-                            [currentSessionId]: src
-                        }));
-                    }
-                    // If it's a new session, we need to wait for the assigned ID
-                    // We'll handle that in onSessionCreated
                 },
                 currentSessionId,
                 (assignedSessionId) => {
                     if (!currentSessionId) {
                         setCurrentSessionId(assignedSessionId);
-                        // Now we can store sources for the new session
-                        // But the sources callback has already fired; we can move the storage there
                     }
                 },
                 controller.signal
             );
-            // After streaming, if it was a new session, the sources callback might not have had the ID.
-            // We'll store again in finally block.
         } catch (err) {
             if (err.name === 'AbortError') {
                 console.log("Stream aborted.");
@@ -194,13 +185,16 @@ export default function ChatView() {
             });
         } finally {
             setIsGenerating(false);
-            // Ensure sources are stored for the current session after stream ends
-            if (currentSessionId && sources.length > 0) {
+
+            // Store captured sources under the correct session ID
+            const sessionToStore = currentSessionId;
+            if (sessionToStore && capturedSources.length > 0) {
                 setSessionSources(prev => ({
                     ...prev,
-                    [currentSessionId]: sources
+                    [sessionToStore]: capturedSources
                 }));
             }
+
             loadSessions();
             if (isNewSession) {
                 setTimeout(() => loadSessions(), 8000);
