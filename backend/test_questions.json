@@ -1,0 +1,92 @@
+[
+  {
+    "question": "What are the steps of early diagnosis according to the WHO guide?",
+    "ground_truth": "Awareness and accessing care, clinical evaluation/diagnosis/staging, access to treatment",
+    "answerable": true,
+    "expected_sources": [2, 5]
+  },
+  {
+    "question": "What is the refund policy?",
+    "ground_truth": "Not present",
+    "answerable": false,
+    "expected_sources": []
+  },
+  {
+    "question": "What are the key elements of early diagnosis?",
+    "ground_truth": "Volume of participants, test, health system requirements, etc.",
+    "answerable": true,
+    "expected_sources": [4, 7]
+  },
+  {
+    "question": "Who is the CEO of Google?",
+    "ground_truth": null,
+    "answerable": false,
+    "expected_sources": []
+  },
+  {
+    "question": "How is early diagnosis different from screening?",
+    "ground_truth": "Early diagnosis deals with symptomatic patients, screening targets asymptomatic populations",
+    "answerable": true,
+    "expected_sources": [6, 8]
+  },
+  {
+    "question": "What is the global cancer burden according to the document?",
+    "ground_truth": "8.8 million deaths in 2015, one in six deaths globally",
+    "answerable": true,
+    "expected_sources": [1]
+  },
+  {
+    "question": "What are the core components of comprehensive cancer control?",
+    "ground_truth": "Prevention, early diagnosis and screening, treatment, palliative care, survivorship care",
+    "answerable": true,
+    "expected_sources": [3]
+  },
+  {
+    "question": "What is the population of Tokyo?",
+    "ground_truth": null,
+    "answerable": false,
+    "expected_sources": []
+  },
+  {
+    "question": "List the barriers to early diagnosis mentioned in the document.",
+    "ground_truth": "Poor health literacy, cancer stigma, limited access to primary care, etc.",
+    "answerable": true,
+    "expected_sources": [21]
+  },
+  {
+    "question": "What is the purpose of a monitoring and evaluation framework?",
+    "ground_truth": "To improve cancer early diagnosis services, track indicators, identify delays",
+    "answerable": true,
+    "expected_sources": [22]
+  },
+  {
+    "question": "Who discovered penicillin?",
+    "ground_truth": null,
+    "answerable": false,
+    "expected_sources": []
+  },
+  {
+    "question": "What are the potential harms of screening?",
+    "ground_truth": "Complications, psychological distress, overdiagnosis and overtreatment",
+    "answerable": true,
+    "expected_sources": [6]
+  },
+  {
+    "question": "What is the title of the guide?",
+    "ground_truth": "Guide to cancer early diagnosis",
+    "answerable": true,
+    "expected_sources": [0]
+  },
+  {
+    "question": "What is the weather like today?",
+    "ground_truth": null,
+    "answerable": false,
+    "expected_sources": []
+  },
+  {
+    "question": "How many pages does the document have?",
+    "ground_truth": "Not explicitly stated",
+    "answerable": false,
+    "expected_sources": []
+  }
+]
